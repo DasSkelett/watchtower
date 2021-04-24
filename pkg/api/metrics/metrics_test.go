@@ -2,10 +2,11 @@ package metrics_test
 
 import (
 	"fmt"
-	"github.com/containrrr/watchtower/pkg/metrics"
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	"github.com/containrrr/watchtower/pkg/metrics"
 
 	"github.com/containrrr/watchtower/pkg/api"
 	metricsAPI "github.com/containrrr/watchtower/pkg/api/metrics"
@@ -39,7 +40,7 @@ var _ = Describe("the metrics", func() {
 	m := metricsAPI.New()
 
 	httpAPI.RegisterHandler(m.Path, m.Handle)
-	httpAPI.Start(false)
+	httpAPI.Start(false, false)
 
 	It("should serve metrics", func() {
 		metric := &metrics.Metric{

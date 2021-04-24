@@ -157,6 +157,7 @@ func Run(c *cobra.Command, names []string) {
 	enableUpdateAPI, _ := c.PersistentFlags().GetBool("http-api-update")
 	enableMetricsAPI, _ := c.PersistentFlags().GetBool("http-api-metrics")
 	apiToken, _ := c.PersistentFlags().GetString("http-api-token")
+	noStartupMessage, _ := c.PersistentFlags().GetBool("no-startup-message")
 
 	if rollingRestart && monitorOnly {
 		log.Fatal("Rolling restarts is not compatible with the global monitor only flag")
@@ -169,7 +170,7 @@ func Run(c *cobra.Command, names []string) {
 	}
 
 	if runOnce {
-		writeStartupMessage(c, time.Time{}, filterDesc)
+		writeStartupMessage(noStartupMessage, time.Time{}, filterDesc)
 		runUpdatesWithNotifications(filter)
 		notifier.Close()
 		os.Exit(0)
@@ -192,11 +193,11 @@ func Run(c *cobra.Command, names []string) {
 		httpAPI.RegisterHandler(metricsHandler.Path, metricsHandler.Handle)
 	}
 
-	if err := httpAPI.Start(enableUpdateAPI); err != nil {
+	if err := httpAPI.Start(enableUpdateAPI, noStartupMessage); err != nil {
 		log.Error("failed to start API", err)
 	}
 
-	if err := runUpgradesOnSchedule(c, filter, filterDesc); err != nil {
+	if err := runUpgradesOnSchedule(noStartupMessage, filter, filterDesc); err != nil {
 		log.Error(err)
 	}
 
@@ -253,8 +254,8 @@ func formatDuration(d time.Duration) string {
 	return sb.String()
 }
 
-func writeStartupMessage(c *cobra.Command, sched time.Time, filtering string) {
-	if noStartupMessage, _ := c.PersistentFlags().GetBool("no-startup-message"); !noStartupMessage {
+func writeStartupMessage(noStartupMessage bool, sched time.Time, filtering string) {
+	if !noStartupMessage {
 		schedMessage := "Running a one time update."
 		if !sched.IsZero() {
 			until := formatDuration(time.Until(sched))
@@ -272,7 +273,7 @@ func writeStartupMessage(c *cobra.Command, sched time.Time, filtering string) {
 	}
 }
 
-func runUpgradesOnSchedule(c *cobra.Command, filter t.Filter, filtering string) error {
+func runUpgradesOnSchedule(noStartupMessage bool, filter t.Filter, filtering string) error {
 	tryLockSem := make(chan bool, 1)
 	tryLockSem <- true
 
@@ -301,7 +302,7 @@ func runUpgradesOnSchedule(c *cobra.Command, filter t.Filter, filtering string) 
 		return err
 	}
 
-	writeStartupMessage(c, scheduler.Entries()[0].Schedule.Next(time.Now()), filtering)
+	writeStartupMessage(noStartupMessage, scheduler.Entries()[0].Schedule.Next(time.Now()), filtering)
 
 	scheduler.Start()
 
